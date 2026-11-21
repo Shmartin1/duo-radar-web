@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d12">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<script>window.DUO_SHARE = {"topic":"duo-radar-a0b9b74e5668fc42","owner":"Josh"};</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22none%22 stroke=%22%230071e3%22 stroke-width=%222%22/%3E%3Ccircle cx=%228%22 cy=%228%22 r=%222.5%22 fill=%22%230071e3%22/%3E%3C/svg%3E">
+<title>Duo Radar — iPhone Duo stock near you</title>
+<style>
+  :root {
+    --bg: #0b0d12; --card: #15181f; --card2: #1c2029; --ink: #f2f3f5; --muted: #9298a3; --line: #262b35;
+    --blue: #2f8cff; --green: #3ddc84; --green-bg: rgba(61,220,132,.12); --red: #ff6b5e; --red-bg: rgba(255,107,94,.12);
+    --amber: #ffd60a; --amber-bg: rgba(255,214,10,.12); --night: linear-gradient(135deg,#1a2140,#121626 70%); --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; cursor: pointer; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: rgba(11,13,18,.82); backdrop-filter: saturate(180%) blur(14px); border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; gap: 14px; height: 58px; }
+  .logo { font-weight: 700; font-size: 18px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+  .logo .ring { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--blue); position: relative; }
+  .logo .ring::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: var(--blue); }
+  .live { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; margin-left: auto; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; box-shadow: 0 0 0 0 rgba(52,199,89,.6); animation: pulse 2s infinite; }
+  .dot.err { background: #ff3b30; animation: none; }
+  .dot.idle { background: #4a505c; animation: none; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(52,199,89,0); } 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0); } }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 980px; padding: 7px 14px; font-size: 14px; color: var(--ink); }
+  .btn:hover { border-color: #3a404c; background: var(--card2); }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.primary:hover { background: #4a9bff; }
+  .btn:disabled { opacity: .55; cursor: default; }
+
+  .crumbs { color: var(--muted); font-size: 13px; margin: 22px 0 6px; }
+  h1 { font-size: 34px; letter-spacing: -.02em; margin: 0 0 6px; line-height: 1.15; }
+  .lede { color: var(--muted); margin: 0 0 18px; max-width: 760px; }
+
+  .summary { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 820px) { .summary { grid-template-columns: 1fr; } h1 { font-size: 27px; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  .big { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+  .big small { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .muted { color: var(--muted); }
+  .alertcard { background: var(--night); color: #fff; border: 1px solid #2a3356; position: relative; overflow: hidden; }
+  .alertcard::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 85% 20%, rgba(255,255,255,.14) 0 1px, transparent 2px) 0 0/38px 38px, radial-gradient(circle at 30% 70%, rgba(255,255,255,.10) 0 1px, transparent 2px) 0 0/53px 53px; pointer-events: none; }
+  .alertcard .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .7; }
+  .alertcard h3 { margin: 4px 0 10px; font-size: 19px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .pill { background: rgba(255,255,255,.14); border-radius: 980px; padding: 3px 10px; font-size: 13px; }
+  .alertcard .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; }
+  .alertcard .btn { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); color: #fff; }
+  .alertcard .btn:hover { background: rgba(255,255,255,.2); }
+  .warn { background: var(--amber-bg); color: var(--amber); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+  .alertcard .warn { background: rgba(255,214,10,.16); color: #ffd60a; }
+  .errbar { background: var(--red-bg); color: var(--red); border-radius: 10px; padding: 10px 14px; font-size: 14px; margin-bottom: 14px; display: none; }
+
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 22px 0 14px; }
+  .fgroup { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .fgroup .fl { font-size: 13px; color: var(--muted); margin-right: 2px; }
+  .chip { border: 1px solid var(--line); background: var(--card); border-radius: 980px; padding: 5px 12px; font-size: 13px; color: var(--ink); }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: #0b0d12; }
+  .chip.mine { border-color: var(--blue); color: var(--blue); }
+  .chip.mine.on { background: var(--blue); color: #fff; }
+  select { font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 980px; padding: 5px 10px; background: var(--card); color: var(--ink); }
+  input[type=checkbox] { accent-color: var(--blue); }
+  .drawer { border-left: 1px solid var(--line); }
+  label.tog { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+
+  .stores { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .store { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .store.instock { border-color: rgba(61,220,132,.55); box-shadow: 0 0 0 3px var(--green-bg); }
+  .store.far { opacity: .7; }
+  .store .top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .store .name { font-weight: 600; font-size: 16px; }
+  .badge { font-size: 12px; font-weight: 600; border-radius: 980px; padding: 3px 9px; white-space: nowrap; }
+  .badge.in { background: var(--green-bg); color: var(--green); }
+  .badge.out { background: var(--card2); color: var(--muted); }
+  .cfgs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cfg { font-size: 12.5px; border-radius: 8px; padding: 4px 8px; background: var(--card2); color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .cfg.in { background: var(--green-bg); color: var(--green); font-weight: 600; }
+  .cfg .sw { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
+  .sw.ns { background: #2b3550; border-color: rgba(255,255,255,.35) !important; } .sw.sw-w { background: #f4f2ec; }
+  .store .meta { font-size: 12.5px; color: var(--muted); }
+  .store .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+  .store .actions .btn { font-size: 13px; padding: 5px 12px; }
+  .empty { grid-column: 1/-1; text-align: center; color: var(--muted); padding: 30px; background: var(--card); border: 1px dashed var(--line); border-radius: var(--radius); }
+
+  h2 { font-size: 22px; letter-spacing: -.01em; margin: 34px 0 12px; }
+  .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  @media (max-width: 900px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 520px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .stat .v { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+
+  .two { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+  @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 500; padding: 0 8px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .bars { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; align-items: end; height: 140px; padding-top: 6px; }
+  .bar { background: var(--blue); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; position: relative; }
+  .bar.zero { background: var(--line); }
+  .bar:hover { opacity: 1; }
+  .axis { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; font-size: 10px; color: var(--muted); text-align: center; margin-top: 4px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .tile.watched { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47,140,255,.15); }
+  .tile .t { font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .tile .pn { font-size: 11.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .tile .bell { margin-top: 4px; font-size: 12.5px; border: 1px solid var(--line); border-radius: 980px; padding: 4px 10px; align-self: flex-start; color: var(--muted); background: var(--card2); }
+  .tile.watched .bell { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .alog .item { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .alog .item:last-child { border: 0; }
+  footer { color: var(--muted); font-size: 12.5px; margin: 40px 0 30px; line-height: 1.6; }
+
+  /* settings drawer */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; z-index: 20; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); background: var(--bg); z-index: 21; transform: translateX(100%); transition: transform .25s ease; overflow-y: auto; padding: 22px; }
+  .open .scrim { display: block; } .open .drawer { transform: none; }
+  .drawer h3 { margin: 0 0 4px; font-size: 21px; }
+  .field { margin: 12px 0; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field select { width: 100%; font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card2); color: var(--ink); }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px 10px; margin: 14px 0; }
+  .section h4 { margin: 12px 0 2px; font-size: 14px; }
+  .loc { display: grid; grid-template-columns: 1.4fr .9fr .8fr auto; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .loc input { width: 100%; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card2); color: var(--ink); }
+  .loc .x { border: 0; background: none; color: var(--muted); font-size: 18px; padding: 0 6px; }
+  .loc .x:hover { color: var(--red); }
+  .area { font-size: 11.5px; font-weight: 600; letter-spacing: .02em; color: var(--blue); text-transform: uppercase; }
+  .viewer .owner-only { display: none !important; }
+  .viewbar { display: none; background: rgba(47,140,255,.12); color: #8ec0ff; border-radius: 10px; padding: 10px 14px; font-size: 14px; margin-bottom: 14px; }
+  .viewer .viewbar { display: block; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #f2f3f5; color: #0b0d12; box-shadow: 0 8px 30px rgba(0,0,0,.5); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 30; display: none; max-width: 90vw; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="logo"><span class="ring"></span>Duo Radar</div>
+    <div class="live"><span class="dot idle" id="dot"></span><span id="liveText">Starting…</span></div>
+    <button class="btn owner-only" id="shareBtn" style="display:none" title="Copy the link for friends">Share</button>
+    <button class="btn owner-only" id="checkNow">Check now</button>
+    <button class="btn primary owner-only" id="openSettings">Alert settings</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="crumbs">Home › United States › iPhone Duo</div>
+  <h1 id="title">iPhone Duo in stock near 98005</h1>
+  <p class="lede" id="lede">Live in-store pickup availability from Apple Stores near you, checked straight from apple.com. You'll get an email as soon as your configuration comes into stock.</p>
+
+  <div class="viewbar" id="viewbar"></div>
+  <div class="errbar" id="errbar"></div>
+
+  <div class="summary">
+    <div class="card">
+      <div class="big" id="sumBig">—</div>
+      <div class="muted" id="sumSub">Waiting for the first check…</div>
+      <div style="margin-top:10px;font-size:14px" id="sumLast"></div>
+    </div>
+    <div class="card alertcard">
+      <div class="label" id="alertLabel">Your alert</div>
+      <h3 id="alertTitle">iPhone Duo</h3>
+      <div class="pills" id="alertPills"></div>
+      <div class="row">
+        <span id="alertEmail" style="font-size:14px;opacity:.85"></span>
+        <button class="btn owner-only" id="editAlert" style="margin-left:auto">Edit</button>
+      </div>
+      <div class="warn" id="alertWarn" style="margin-top:10px;display:none;position:relative"></div>
+    </div>
+  </div>
+
+  <div class="filters" id="filters">
+    <div class="fgroup"><span class="fl">Show</span><button class="chip mine on" data-preset="mine">My alert</button><button class="chip" data-preset="all">Everything</button></div>
+    <div class="fgroup" id="fStorage"><span class="fl">Storage</span></div>
+    <div class="fgroup" id="fColor"><span class="fl">Colour</span></div>
+    <div class="fgroup" id="fArea"><span class="fl">Area</span></div>
+    <div class="fgroup">
+      <select id="sort">
+        <option value="instock">In stock first</option>
+        <option value="nearest">Nearest</option>
+        <option value="latest">Latest restock</option>
+        <option value="name">Store name A–Z</option>
+      </select>
+      <label class="tog"><input type="checkbox" id="onlyIn"> In stock only</label>
+      <label class="tog"><input type="checkbox" id="onlyNear" checked> <span id="nearLabel">Within alert radius</span></label>
+    </div>
+  </div>
+
+  <div class="stores" id="stores"></div>
+
+  <h2>Last 30 days</h2>
+  <div class="stats" id="stats"></div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:10px">Latest restocks</div>
+      <table><thead><tr><th>Store</th><th>Model</th><th>Restocked</th></tr></thead><tbody id="restocks"></tbody></table>
+    </div>
+    <div class="card">
+      <div style="font-weight:600">Restocks by hour of day</div>
+      <div class="muted" style="font-size:12.5px">Your local time · all configurations</div>
+      <div class="bars" id="bars"></div>
+      <div class="axis" id="axis"></div>
+    </div>
+  </div>
+
+  <h2>Configurations</h2>
+  <p class="muted" style="margin:-6px 0 12px;font-size:14px">Tap the bell on any configuration to add it to (or remove it from) your email alert.</p>
+  <div class="tiles" id="tiles"></div>
+
+  <h2>Alerts sent</h2>
+  <div class="card alog" id="alog"></div>
+
+  <footer>
+    Duo Radar runs on your computer and reads Apple's public in-store pickup availability (the same data behind “Check availability” on apple.com). It is not affiliated with Apple.
+    Stock can change within seconds — always confirm on apple.com before you drive. Apple shows the nearest stores to your ZIP; distances are Apple's straight-line miles.
+  </footer>
+</main>
+
+<div id="settingsRoot">
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" aria-label="Alert settings">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <h3>Alert settings</h3><button class="btn" id="closeSettings">Close</button>
+    </div>
+    <p class="muted" style="margin:4px 0 0;font-size:14px">Saved to config.json on this computer.</p>
+
+    <div class="section">
+      <h4>What to watch</h4>
+      <div class="field"><label>Colours</label><div class="fgroup" id="sColors"></div></div>
+      <div class="field"><label>Storage</label><div class="fgroup" id="sStorages"></div></div>
+      <div class="field"><label>Areas to watch</label>
+        <div class="loc" style="margin-bottom:2px"><span class="muted" style="font-size:12px">Name</span><span class="muted" style="font-size:12px">ZIP</span><span class="muted" style="font-size:12px">Miles</span><span></span></div>
+        <div id="sLocs"></div>
+        <button class="btn" id="addLoc" type="button" style="margin-top:6px;font-size:13px">+ Add area</button>
+        <div class="hint">Each area is checked separately. You're alerted for stores within that area's radius of its ZIP.</div>
+      </div>
+      <div class="field"><label>Check every (seconds)</label><input id="sPoll" type="number" min="30"><div class="hint">Each check covers one area, alternating. 90s means each of 2 areas is checked every ~3 minutes. Faster gets your connection rate-limited by Apple.</div></div>
+    </div>
+
+    <div class="section">
+      <h4>Backup route: Geonode</h4>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">When Apple rate-limits your connection, Duo Radar rests it and checks through <a href="https://geonode.com/products/scraper-api" target="_blank" rel="noopener">Geonode's Scraper API</a> until it recovers. The free tier is 1,500 requests/month.</p>
+      <div class="field"><label>Geonode API key</label><input id="gKey" type="password" autocomplete="off"><div class="hint">From <a href="https://app.geonode.com/scraper-api" target="_blank" rel="noopener">app.geonode.com/scraper-api</a> → Get Code → Copy API Key. Stored only in config.json on this computer.</div></div>
+      <div class="grid2">
+        <div class="field"><label>Use Geonode</label>
+          <select id="gMode"><option value="fallback">Only while Apple blocks me</option><option value="always">For every check</option><option value="off">Never</option></select></div>
+        <div class="field"><label>Monthly cap (requests)</label><input id="gCap" type="number" min="0"></div>
+      </div>
+      <div class="muted" style="font-size:13px" id="gUsage"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="gTest" type="button">Test Geonode (uses 1 request)</button></div>
+      <pre id="gResult" style="display:none;white-space:pre-wrap;font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0 0;max-height:260px;overflow:auto"></pre>
+    </div>
+
+    <div class="section">
+      <h4>Email</h4>
+      <div class="field"><label>Send alerts to</label><input id="sTo" type="email" placeholder="you@example.com"><div class="hint">Separate several addresses with commas. Tip: add your carrier's email-to-SMS address to get a text.</div></div>
+      <div class="field"><label>Send using</label>
+        <select id="sProvider">
+          <option value="gmail">Gmail (smtp.gmail.com)</option>
+          <option value="icloud">iCloud Mail (smtp.mail.me.com)</option>
+          <option value="custom">Other SMTP server</option>
+        </select>
+      </div>
+      <div class="grid2" id="customSmtp">
+        <div class="field"><label>SMTP host</label><input id="sHost"></div>
+        <div class="field"><label>Port</label><input id="sPort" type="number"></div>
+      </div>
+      <label class="tog" id="secureRow" style="margin:-2px 0 6px"><input type="checkbox" id="sSecure"> Use SSL/TLS from the start (port 465). Off = STARTTLS (port 587).</label>
+      <div class="field"><label>Account (username)</label><input id="sUser" placeholder="you@gmail.com" autocomplete="off"></div>
+      <div class="field"><label>App password</label><input id="sPass" type="password" autocomplete="new-password"><div class="hint" id="passHint"></div></div>
+      <div class="field"><label>From address (optional)</label><input id="sFrom" placeholder="defaults to the account"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn primary" id="save">Save</button>
+      <button class="btn" id="testEmail">Save &amp; send test email</button>
+    </div>
+    <div class="section" style="margin-top:16px">
+      <h4>Share with friends</h4>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">Friends get a read-only view: stock, stores and restocks. They don't see your settings, email or checkout links.</p>
+      <label class="tog" style="margin-bottom:8px"><input type="checkbox" id="shEnabled"> Sharing on</label>
+      <div id="shStatus" style="font-size:14px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn" id="shCopy" type="button">Copy link for friends</button></div>
+    </div>
+    <div class="section" style="margin-top:16px">
+      <h4>Desktop notifications</h4>
+      <p class="muted" style="font-size:13px;margin:4px 0 10px">Also pop up a notification and play a sound while this page is open.</p>
+      <button class="btn" id="notifBtn">Turn on notifications</button>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const STORAGES = ['256GB', '512GB', '1TB', '2TB'];
+const COLORS = ['Night Sky', 'Star White'];
+const PROVIDERS = {
+  gmail: { host: 'smtp.gmail.com', port: 465, secure: true, hint: 'Gmail needs an <b>app password</b>, not your normal password: turn on 2-Step Verification, then create one at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>.' },
+  icloud: { host: 'smtp.mail.me.com', port: 587, secure: false, hint: 'iCloud needs an <b>app-specific password</b> from <a href="https://account.apple.com" target="_blank" rel="noopener">account.apple.com</a> → Sign-In and Security. Username is your full @icloud.com address.' },
+  custom: { hint: 'Use the SMTP settings from your email provider.' },
+};
+
+let S = null;               // latest server state
+let filter = null;          // { storages:Set, colors:Set, preset }
+let lastAlertSeen = null;
+let notifOn = localStorage.getItem('duo-notify') === '1';
+
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function ago(t) {
+  if (!t) return '—';
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
+function dur(ms) {
+  if (ms == null) return '—';
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m} min`;
+  return `${(m / 60).toFixed(m < 600 ? 1 : 0)} h`;
+}
+function hourLabel(h) { return h == null ? '—' : `${(h % 12) || 12}${h < 12 ? 'am' : 'pm'}`; }
+function cfgName(c) { return `${c.storage} ${c.color}`; }
+function toast(msg, ms = 3500) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), ms); }
+
+// Where the Duo Radar backend lives. Served by Duo Radar itself → same place. Served from GitHub Pages
+// (window.DUO_SHARE set) → ?api=… if given, otherwise the latest tunnel address posted to ntfy.sh.
+let API = '';
+async function resolveApi() {
+  const q = new URLSearchParams(location.search).get('api');
+  if (q) { API = q.replace(/\/+$/, ''); return; }
+  if (!window.DUO_SHARE) { API = ''; return; }
+  const r = await fetch(`${window.DUO_SHARE.ntfy || 'https://ntfy.sh'}/${encodeURIComponent(window.DUO_SHARE.topic)}/json?poll=1&since=latest`, { cache: 'no-store' });
+  const lines = (await r.text()).trim().split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((m) => m && m.event === 'message');
+  const last = lines[lines.length - 1];
+  if (!last) throw new Error('offline');
+  API = JSON.parse(last.message).url.replace(/\/+$/, '');
+}
+async function api(path, body) {
+  const r = await fetch(API + path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+let areaFilter = 'all';
+function presetMine() {
+  filter = { preset: 'mine', storages: new Set(S.config.watch.storages), colors: new Set(S.config.watch.colors) };
+}
+function presetAll() { filter = { preset: 'all', storages: new Set(STORAGES), colors: new Set(COLORS) }; }
+function renderAreaChips() {
+  const locs = S.config.locations;
+  $('#fArea').style.display = locs.length > 1 ? 'flex' : 'none';
+  if (areaFilter !== 'all' && !locs.some((l) => l.zip === areaFilter)) areaFilter = 'all';
+  $('#fArea').innerHTML = '<span class="fl">Area</span>' + [['all', 'All'], ...locs.map((l) => [l.zip, l.label])]
+    .map(([z, t]) => `<button class="chip ${areaFilter === z ? 'on' : ''}" data-area="${esc(z)}">${esc(t)}</button>`).join('');
+}
+
+function buildChips() {
+  $('#fStorage').innerHTML = '<span class="fl">Storage</span>' + STORAGES.map((s) => `<button class="chip" data-st="${s}">${s.replace('GB', ' GB').replace('TB', ' TB')}</button>`).join('');
+  $('#fColor').innerHTML = '<span class="fl">Colour</span>' + COLORS.map((c) => `<button class="chip" data-co="${c}">${c}</button>`).join('');
+  $('#filters').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.area) { areaFilter = b.dataset.area; }
+    else if (b.dataset.preset) { b.dataset.preset === 'mine' ? presetMine() : presetAll(); }
+    else if (b.dataset.st) { toggle(filter.storages, b.dataset.st); filter.preset = 'custom'; }
+    else if (b.dataset.co) { toggle(filter.colors, b.dataset.co); filter.preset = 'custom'; }
+    render();
+  });
+  $('#sort').onchange = render; $('#onlyIn').onchange = render; $('#onlyNear').onchange = render;
+}
+function toggle(set, v) { set.has(v) ? set.delete(v) : set.add(v); }
+
+function render() {
+  if (!S) return;
+  const { config, stores, stats, catalog, status } = S;
+  const watched = catalog.filter((c) => c.watched);
+  const watchedParts = new Set(watched.map((c) => c.part));
+
+  // header status
+  const dot = $('#dot');
+  const nextIn = Math.max(0, Math.round((status.nextPoll - Date.now()) / 1000));
+  const nextTxt = nextIn > 90 ? `${Math.round(nextIn / 60)} min` : `${nextIn}s`;
+  const via = status.lastSource === 'geonode' ? ' via Geonode' : '';
+  if (status.checking) { dot.className = 'dot'; $('#liveText').textContent = `Checking ${config.locations.find((l) => l.zip === status.checking)?.label || status.checking}…`; }
+  else if (status.lastError) { dot.className = 'dot err'; $('#liveText').textContent = `Problem checking Apple · retry in ${nextTxt}`; }
+  else if (status.lastOk) { dot.className = 'dot'; $('#liveText').textContent = `Live · checked ${ago(status.lastOk)}${via} · next in ${nextTxt}`; }
+  else { dot.className = 'dot idle'; $('#liveText').textContent = 'Checking Apple…'; }
+  const eb = $('#errbar');
+  const restingUntil = status.localBlockedUntil > Date.now() ? status.localBlockedUntil : 0;
+  const geoOn = config.geonode.keySet && config.geonode.mode !== 'off';
+  const msgs = [];
+  if (status.lastError) msgs.push(`Last check failed — ${status.lastError}. ${status.lastOk ? `Last good data ${ago(status.lastOk)}.` : ''}`);
+  if (restingUntil) msgs.push(`Apple is rate-limiting your connection, so it's resting until ${new Date(restingUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. ${geoOn ? 'Checking through Geonode meanwhile.' : 'Add a Geonode key in Alert settings to keep checking meanwhile.'}`);
+  if (msgs.length) { eb.style.display = 'block'; eb.textContent = msgs.join(' '); eb.style.background = !status.lastError ? 'var(--amber-bg)' : ''; eb.style.color = !status.lastError ? 'var(--amber)' : ''; } else eb.style.display = 'none';
+
+  $('#title').textContent = `iPhone Duo in stock near ${config.locations.map((l) => l.zip).join(' & ')}`;
+  document.body.classList.toggle('viewer', Boolean(S.viewer));
+  if (S.viewer) $('#viewbar').textContent = `👀 Live view of ${S.ownerName}'s Duo Radar. Read-only; it refreshes on its own.`;
+  const sh = S.share;
+  $('#shareBtn').style.display = !S.viewer && sh && sh.status === 'up' ? '' : 'none';
+  renderAreaChips();
+
+  // summary
+  const near = stores.filter((s) => s.inRange && (areaFilter === 'all' || s.zip === areaFilter));
+  const nearWithMine = near.filter((s) => watched.some((c) => s.avail?.[c.part]?.available));
+  $('#sumBig').innerHTML = status.lastOk || stores.length
+    ? `${nearWithMine.length} <small>of ${near.length} stores in your ${areaFilter === 'all' && config.locations.length > 1 ? `${config.locations.length} areas` : 'area'} have your configuration</small>`
+    : '—';
+  $('#sumSub').textContent = nearWithMine.length
+    ? `In stock now at ${nearWithMine.map((s) => s.name).join(', ')}`
+    : near.length ? `Nearby stores: ${near.map((s) => s.name).join(' · ')}` : 'Waiting for the first check…';
+  const lr = stats.lastRestock;
+  $('#sumLast').innerHTML = lr ? `Last restock seen: <b>${esc(cfgFor(lr.part))}</b> at ${esc(S.stores.find((s) => s.id === lr.store)?.name || lr.store)} · ${ago(lr.t)}` : '<span class="muted">No restocks seen yet — the radar keeps watching.</span>';
+
+  // alert card
+  $('#alertTitle').textContent = `iPhone Duo · ${config.watch.colors.join(' / ') || 'no colour picked'}`;
+  $('#alertPills').innerHTML = [...config.watch.storages.map((s) => s), ...config.locations.map((l) => `${l.label}: ≤ ${l.radiusMiles} mi of ${l.zip}`), `every ~${config.pollSeconds}s, alternating`, ...(config.geonode.keySet && config.geonode.mode !== 'off' ? [`Geonode ${config.geonode.mode === 'always' ? 'always' : 'backup'}: ${S.geonodeUsage.used}/${config.geonode.monthlyCap}`] : [])].map((p) => `<span class="pill">${esc(p)}</span>`).join('');
+  $('#alertEmail').innerHTML = S.viewer ? '' : S.emailReady ? `📧 Emailing <b>${esc(config.email.to)}</b>` : '';
+  if (S.viewer) {
+    $('#alertLabel').textContent = `${S.ownerName}'s alert`;
+    $('#lede').textContent = `Live in-store pickup availability from Apple Stores in ${S.ownerName}'s watch areas, checked straight from apple.com.`;
+  }
+  const w = $('#alertWarn');
+  if (!S.emailReady) { w.style.display = 'block'; w.innerHTML = '⚠️ Email isn\'t set up yet, so alerts only show here. Click <b>Edit</b> to add your email.'; }
+  else if (!watched.length) { w.style.display = 'block'; w.textContent = '⚠️ No configurations selected — pick at least one colour and storage.'; }
+  else w.style.display = 'none';
+
+  // filter chips state
+  document.querySelectorAll('[data-preset]').forEach((b) => b.classList.toggle('on', b.dataset.preset === filter.preset));
+  document.querySelectorAll('[data-st]').forEach((b) => b.classList.toggle('on', filter.storages.has(b.dataset.st)));
+  document.querySelectorAll('[data-co]').forEach((b) => b.classList.toggle('on', filter.colors.has(b.dataset.co)));
+
+  // stores
+  const shown = catalog.filter((c) => filter.storages.has(c.storage) && filter.colors.has(c.color));
+  const rows = stores.map((s) => {
+    const inParts = shown.filter((c) => s.avail?.[c.part]?.available);
+    const latest = Math.max(0, ...shown.map((c) => s.avail?.[c.part]?.since || 0));
+    return { s, inParts, latest };
+  }).filter((r) => (!$('#onlyIn').checked || r.inParts.length) && (!$('#onlyNear').checked || r.s.inRange) && (areaFilter === 'all' || r.s.zip === areaFilter));
+  const sort = $('#sort').value;
+  rows.sort((a, b) =>
+    sort === 'nearest' ? a.s.distance - b.s.distance :
+    sort === 'latest' ? b.latest - a.latest || a.s.distance - b.s.distance :
+    sort === 'name' ? a.s.name.localeCompare(b.s.name) :
+    (b.inParts.length > 0) - (a.inParts.length > 0) || a.s.distance - b.s.distance);
+
+  $('#stores').innerHTML = rows.length ? rows.map(({ s, inParts }) => {
+    const isIn = inParts.length > 0;
+    const checked = Math.max(0, ...Object.values(s.avail || {}).map((a) => a.checked || 0));
+    const since = isIn ? Math.min(...inParts.map((c) => s.avail[c.part].since || Date.now())) : 0;
+    const target = isIn ? (inParts.find((c) => watchedParts.has(c.part)) || inParts[0]) : (shown.find((c) => watchedParts.has(c.part)) || shown[0] || catalog[2]);
+    const buy = target.url;
+    const mineIn = inParts.some((c) => watchedParts.has(c.part));
+    return `<div class="store ${isIn ? 'instock' : ''} ${s.inRange ? '' : 'far'}">
+      <div class="top">
+        <div>${config.locations.length > 1 ? `<div class="area">${esc(s.area)}</div>` : ''}<div class="name"><a href="${esc(s.url)}" target="_blank" rel="noopener">Apple ${esc(s.name)}</a></div>
+        <div class="muted" style="font-size:13px">${esc(s.city)}, ${esc(s.state)} · ${s.distance} mi from ${esc(s.zip)}</div></div>
+        <span class="badge ${isIn ? 'in' : 'out'}">${isIn ? (mineIn ? (S.viewer ? `● ${esc(S.ownerName)}'s config in stock` : '● Your config in stock') : '● In stock') : 'Sold out'}</span>
+      </div>
+      <div class="cfgs">${shown.map((c) => {
+        const a = s.avail?.[c.part];
+        const on = a?.available;
+        return `<span class="cfg ${on ? 'in' : ''}" title="${esc(a?.quote || 'Not checked yet')}"><span class="sw ${c.color === 'Night Sky' ? 'ns' : 'sw-w'}"></span>${esc(c.storage)}${filter.colors.size > 1 ? ' ' + esc(c.color.split(' ')[0]) : ''}${watchedParts.has(c.part) ? ' 🔔' : ''}</span>`;
+      }).join('') || '<span class="muted" style="font-size:13px">Pick a storage and colour above</span>'}</div>
+      <div class="meta">${isIn ? `In stock since ${ago(since)} · ` : (lastRestockAt(s.id, shown) ? `Last restock ${ago(lastRestockAt(s.id, shown))} · ` : '')}checked ${ago(checked)}</div>
+      <div class="actions">
+        <button class="btn ${isIn ? 'primary' : ''}" data-copy="${esc(target.part)}" ${S.viewer ? 'hidden' : ''} data-store="${esc(s.name)}" title="Copies a link to ${esc(cfgName(target))} pre-filled with ${esc(S.checkoutSummary)}">Create checkout URL</button>
+        <a class="btn" href="${esc(buy)}" target="_blank" rel="noopener">Apple page</a>
+        <a class="btn" href="${esc(s.mapsUrl)}" target="_blank" rel="noopener">Directions</a>
+        ${s.phone ? `<a class="btn" href="tel:${esc(s.phone.replace(/[^\d+]/g, ''))}">Call</a>` : ''}
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty">${stores.length ? 'No stores match these filters right now.' : 'Waiting for the first check from Apple…'}</div>`;
+
+  // stats
+  $('#stats').innerHTML = [
+    [stats.restocks30, 'Restocks seen'],
+    [stats.storesRestocked, 'Stores restocked'],
+    [dur(stats.medianInStockMs), 'Typical time in stock'],
+    [hourLabel(stats.commonHour), 'Most common hour'],
+    [stats.topStore ? esc(stats.topStore.name) : '—', 'Store with most restocks'],
+    [stats.lastRestock ? ago(stats.lastRestock.t) : '—', 'Since last restock'],
+  ].map(([v, k]) => `<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+
+  // restocks table
+  $('#restocks').innerHTML = S.history.length ? S.history.slice(0, 12).map((h) => {
+    const st = S.stores.find((s) => s.id === h.store);
+    return `<tr><td>${esc(st?.name || h.store)}<div class="muted" style="font-size:12px">${esc(st?.city || '')}${st ? ` · ${st.distance} mi` : ''}</div></td><td>${esc(cfgFor(h.part))}${watchedParts.has(h.part) ? ' 🔔' : ''}</td><td>${new Date(h.t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td></tr>`;
+  }).join('') : '<tr><td colspan="3" class="muted">No restocks yet. They\'ll appear here the moment one happens.</td></tr>';
+
+  // hourly bars
+  const max = Math.max(1, ...stats.hours);
+  $('#bars').innerHTML = stats.hours.map((n, h) => `<div class="bar ${n ? '' : 'zero'}" style="height:${Math.max(2, (n / max) * 100)}%" title="${hourLabel(h)}: ${n} restock${n === 1 ? '' : 's'}"></div>`).join('');
+  $('#axis').innerHTML = stats.hours.map((_, h) => `<div>${h % 3 === 0 ? hourLabel(h) : ''}</div>`).join('');
+
+  // tiles
+  $('#tiles').innerHTML = catalog.map((c) => {
+    const nowIn = stores.filter((s) => s.inRange && s.avail?.[c.part]?.available).length;
+    return `<div class="tile ${c.watched ? 'watched' : ''}">
+      <div class="t"><span class="sw ${c.color === 'Night Sky' ? 'ns' : 'sw-w'}" style="width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.2)"></span>${esc(cfgName(c))}</div>
+      <div class="muted" style="font-size:13px">${stats.perPart[c.part] || 0} restocks · ${nowIn ? `<b style="color:var(--green)">in stock at ${nowIn} nearby</b>` : 'none nearby now'}</div>
+      <div class="pn">${esc(c.part)}</div>
+      ${S.viewer ? (c.watched ? `<span class="muted" style="font-size:12.5px">🔔 On ${esc(S.ownerName)}'s alert</span>` : '') : `<button class="bell" data-bell="${esc(c.part)}">${c.watched ? '🔔 Alerting' : '🔕 Not alerting'}</button>`}
+    </div>`;
+  }).join('');
+
+  // alerts log
+  $('#alog').innerHTML = S.alerts.length ? S.alerts.map((a) => `<div class="item">
+      <b>${new Date(a.t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</b> —
+      ${a.items.map((i) => `${esc(i.config)} at ${esc(i.store)} (${i.distance} mi)`).join('; ')}
+      ${S.viewer ? '' : `<div style="font-size:13px;color:${a.emailed ? 'var(--green)' : 'var(--red)'}">${a.emailed ? `Emailed ${esc(S.config.email.to)}` : esc(a.error || 'Not emailed')}</div>`}
+    </div>`).join('') : '<div class="muted" style="font-size:14px">No alerts yet. When your configuration shows up within range, it will be listed here and emailed to you.</div>';
+
+  // notifications for new alerts
+  const newest = S.alerts[0];
+  if (newest && lastAlertSeen !== null && newest.id !== lastAlertSeen) notify(newest);
+  lastAlertSeen = newest ? newest.id : '';
+}
+
+function cfgFor(part) { const c = S.catalog.find((x) => x.part === part); return c ? cfgName(c) : part; }
+function lastRestockAt(store, shown) {
+  const parts = new Set(shown.map((c) => c.part));
+  const h = S.history.find((x) => x.store === store && parts.has(x.part));
+  return h ? h.t : 0;
+}
+
+function notify(a) {
+  const msg = a.items.map((i) => `${i.config} at ${i.store} (${i.distance} mi)`).join('\n');
+  toast('🟢 In stock! ' + msg.replace(/\n/g, ' · '), 10000);
+  try {
+    const ctx = new AudioContext(); const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; g.gain.value = .15; o.start();
+    setTimeout(() => { o.frequency.value = 1320; }, 180); setTimeout(() => { o.stop(); ctx.close(); }, 420);
+  } catch {}
+  if (notifOn && 'Notification' in window && Notification.permission === 'granted') {
+    const n = new Notification('iPhone Duo in stock!', { body: msg, requireInteraction: true });
+    n.onclick = () => { window.focus(); window.open(a.items[0].buyUrl, '_blank'); };
+  }
+  document.title = '🟢 IN STOCK — Duo Radar';
+}
+
+// ------------------------------------------------ settings drawer
+function openSettings() {
+  const c = S.config;
+  $('#sColors').innerHTML = COLORS.map((x) => `<button class="chip ${c.watch.colors.includes(x) ? 'on' : ''}" data-sc="${x}">${x}</button>`).join('');
+  $('#sStorages').innerHTML = STORAGES.map((x) => `<button class="chip ${c.watch.storages.includes(x) ? 'on' : ''}" data-ss="${x}">${x}</button>`).join('');
+  $('#sLocs').innerHTML = ''; c.locations.forEach(addLocRow); $('#sPoll').value = c.pollSeconds;
+  $('#gKey').value = ''; $('#gKey').placeholder = c.geonode.keySet ? '•••••••• (saved — leave blank to keep)' : 'Paste your Geonode API key';
+  $('#gMode').value = c.geonode.mode; $('#gCap').value = c.geonode.monthlyCap;
+  $('#gUsage').textContent = `Used this month: ${S.geonodeUsage.used} of ${c.geonode.monthlyCap} (${S.geonodeUsage.month}).`;
+  $('#gResult').style.display = 'none';
+  $('#sTo').value = c.email.to; $('#sUser').value = c.email.smtp.user; $('#sFrom').value = c.email.from;
+  $('#sHost').value = c.email.smtp.host; $('#sPort').value = c.email.smtp.port; $('#sSecure').checked = c.email.smtp.secure;
+  $('#sPass').value = ''; $('#sPass').placeholder = c.email.smtp.passSet ? '•••••••• (saved — leave blank to keep)' : '16-character app password';
+  const prov = c.email.smtp.host === 'smtp.gmail.com' ? 'gmail' : c.email.smtp.host === 'smtp.mail.me.com' ? 'icloud' : 'custom';
+  $('#sProvider').value = prov; providerUI();
+  $('#notifBtn').textContent = notifOn && Notification.permission === 'granted' ? 'Notifications are on ✓' : 'Turn on notifications';
+  document.body.classList.add('open');
+}
+function addLocRow(l) {
+  const d = document.createElement('div'); d.className = 'loc';
+  d.innerHTML = `<input name="label" placeholder="Name (e.g. Home)" value="${esc(l?.label || '')}">
+    <input name="zip" placeholder="ZIP" inputmode="numeric" maxlength="5" value="${esc(l?.zip || '')}">
+    <input name="radius" type="number" min="1" title="Radius in miles" value="${esc(l?.radiusMiles ?? 30)}">
+    <button class="x" type="button" title="Remove area">×</button>`;
+  d.querySelector('.x').onclick = () => { if (document.querySelectorAll('#sLocs .loc').length > 1) d.remove(); else toast('Keep at least one area.'); };
+  $('#sLocs').appendChild(d);
+}
+$('#addLoc').onclick = () => addLocRow(null);
+function providerUI() {
+  const p = PROVIDERS[$('#sProvider').value];
+  const custom = $('#sProvider').value === 'custom';
+  $('#customSmtp').style.display = custom ? 'grid' : 'none';
+  $('#secureRow').style.display = custom ? 'flex' : 'none';
+  if (!custom) { $('#sHost').value = p.host; $('#sPort').value = p.port; $('#sSecure').checked = p.secure; }
+  $('#passHint').innerHTML = p.hint;
+}
+function gatherSettings() {
+  return {
+    locations: [...document.querySelectorAll('#sLocs .loc')].map((r) => ({ label: r.querySelector('[name=label]').value, zip: r.querySelector('[name=zip]').value.trim(), radiusMiles: Number(r.querySelector('[name=radius]').value) })),
+    pollSeconds: Number($('#sPoll').value),
+    geonode: { apiKey: $('#gKey').value.trim(), mode: $('#gMode').value, monthlyCap: Number($('#gCap').value) },
+    watch: { colors: [...document.querySelectorAll('[data-sc].on')].map((b) => b.dataset.sc), storages: [...document.querySelectorAll('[data-ss].on')].map((b) => b.dataset.ss) },
+    email: { to: $('#sTo').value, from: $('#sFrom').value, smtp: { host: $('#sHost').value, port: Number($('#sPort').value), secure: $('#sSecure').checked, user: $('#sUser').value, pass: $('#sPass').value } },
+  };
+}
+async function save(quiet) {
+  S = await api('/api/config', gatherSettings());
+  if (filter.preset === 'mine') presetMine();
+  render();
+  if (!quiet) toast('Saved ✓');
+}
+
+$('#openSettings').onclick = openSettings; $('#editAlert').onclick = openSettings;
+$('#closeSettings').onclick = () => document.body.classList.remove('open');
+$('#scrim').onclick = () => document.body.classList.remove('open');
+$('#sProvider').onchange = providerUI;
+document.querySelector('.drawer').addEventListener('click', (e) => { const b = e.target.closest('[data-sc],[data-ss]'); if (b) b.classList.toggle('on'); });
+$('#save').onclick = async () => { try { await save(); document.body.classList.remove('open'); } catch (e) { toast('Could not save: ' + e.message, 6000); } };
+$('#testEmail').onclick = async (ev) => {
+  const b = ev.target; b.disabled = true; b.textContent = 'Sending…';
+  try { await save(true); await api('/api/test-email', {}); toast(`Test email sent to ${S.config.email.to} ✓ — check your inbox (and spam).`, 7000); }
+  catch (e) { toast('Test email failed: ' + e.message, 9000); }
+  finally { b.disabled = false; b.textContent = 'Save & send test email'; }
+};
+$('#gTest').onclick = async (ev) => {
+  const b = ev.target, out = $('#gResult');
+  b.disabled = true; b.textContent = 'Asking Apple through Geonode…'; out.style.display = 'block'; out.textContent = 'Waiting for Geonode (can take up to a minute)…';
+  try {
+    await save(true);
+    if (!S.config.geonode.keySet) throw new Error('Paste your Geonode API key first.');
+    const r = await api('/api/geonode-test', {});
+    out.textContent = r.ok
+      ? `✅ Worked in ${(r.ms / 1000).toFixed(1)}s (ZIP ${r.zip}). Apple answered with HTTP ${r.via?.appleStatus ?? '200'}${r.via?.tokens != null ? ` · tokens charged: ${r.via.tokens}` : ''}.\n\n` + r.stores.map((s) => `${s.name} (${s.distance} mi)\n` + Object.entries(s.avail).map(([k, v]) => `   ${k}: ${v}`).join('\n')).join('\n') + `\n\nUsed this month: ${r.usage.used}/${S.config.geonode.monthlyCap}`
+      : `❌ Didn't work (${(r.ms / 1000).toFixed(1)}s): ${r.error}\n\nUsed this month: ${r.usage.used}/${S.config.geonode.monthlyCap}`;
+    S = await api('/api/state'); render();
+    $('#gUsage').textContent = `Used this month: ${S.geonodeUsage.used} of ${S.config.geonode.monthlyCap} (${S.geonodeUsage.month}).`;
+  } catch (e) { out.textContent = '❌ ' + e.message; }
+  finally { b.disabled = false; b.textContent = 'Test Geonode (uses 1 request)'; }
+};
+$('#notifBtn').onclick = async () => {
+  if (!('Notification' in window)) return toast('This browser does not support notifications.');
+  const p = await Notification.requestPermission();
+  notifOn = p === 'granted'; localStorage.setItem('duo-notify', notifOn ? '1' : '0');
+  $('#notifBtn').textContent = notifOn ? 'Notifications are on ✓' : 'Notifications blocked by the browser';
+};
+$('#checkNow').onclick = async () => { await api('/api/check-now', {}); toast('Checking Apple now…', 2000); setTimeout(refresh, 2500); };
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    ta.remove(); return ok;
+  }
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  const c = S.catalog.find((x) => x.part === b.dataset.copy);
+  const ok = await copyText(c.checkoutUrl);
+  if (ok) {
+    const old = b.textContent; b.textContent = 'Copied ✓'; setTimeout(() => (b.textContent = old), 2000);
+    toast(`Copied checkout link for ${cfgName(c)} — ${S.checkoutSummary}. After Add to Bag, choose Apple ${b.dataset.store} for pickup.`, 9000);
+  } else {
+    prompt('Copy this checkout link:', c.checkoutUrl);
+  }
+});
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-bell]'); if (!b) return;
+  const c = S.catalog.find((x) => x.part === b.dataset.bell);
+  const colors = new Set(S.config.watch.colors), storages = new Set(S.config.watch.storages);
+  // Toggle by part: rebuild watch so only exact combos stay. Colour × storage grid, so we toggle the pair.
+  const watchedNow = new Set(S.catalog.filter((x) => x.watched).map((x) => x.part));
+  watchedNow.has(c.part) ? watchedNow.delete(c.part) : watchedNow.add(c.part);
+  const sel = S.catalog.filter((x) => watchedNow.has(x.part));
+  const nc = [...new Set(sel.map((x) => x.color))], ns = [...new Set(sel.map((x) => x.storage))];
+  const cross = S.catalog.filter((x) => nc.includes(x.color) && ns.includes(x.storage)).length;
+  if (cross !== sel.length) toast('Alerts cover every storage × colour you pick, so this also changed matching tiles.', 5000);
+  S = await api('/api/config', { watch: { colors: nc, storages: ns } });
+  if (filter.preset === 'mine') presetMine();
+  render();
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'Duo Radar — iPhone Duo stock near you'; });
+
+function shareStatusText() {
+  const sh = S.share || {};
+  if (!sh.enabled) return 'Sharing is off.';
+  if (sh.status === 'up') return `✅ On. Friends can open <a href="${esc(sh.pagesUrl)}" target="_blank" rel="noopener">${esc(sh.pagesUrl)}</a>${sh.published ? '' : ' <span class="muted">(posting address…)</span>'}${sh.error ? `<div style="color:var(--red);font-size:13px">${esc(sh.error)}</div>` : ''}`;
+  if (sh.status === 'starting') return 'Starting the tunnel…';
+  if (sh.status === 'missing') return '⚠️ Needs Cloudflare\'s free tunnel program. Open Command Prompt and run:<pre style="margin:6px 0;padding:8px;background:var(--card2);border-radius:8px;white-space:pre-wrap">winget install --id Cloudflare.cloudflared</pre>Then restart Duo Radar.';
+  return `⚠️ ${esc(sh.error || 'Tunnel problem')}`;
+}
+async function copyShare() {
+  const u = S.share?.pagesUrl; if (!u) return;
+  (await copyText(u)) ? toast(`Copied ${u} — send it to your friend.`, 6000) : prompt('Copy this link:', u);
+}
+$('#shareBtn').onclick = copyShare;
+$('#shCopy').onclick = copyShare;
+$('#shEnabled').onchange = async (e) => { S = await api('/api/config', { share: { enabled: e.target.checked } }); $('#shStatus').innerHTML = shareStatusText(); render(); };
+setInterval(() => { if (document.body.classList.contains('open') && S && !S.viewer) { $('#shStatus').innerHTML = shareStatusText(); $('#shEnabled').checked = Boolean(S.share?.enabled); } }, 1000);
+
+let apiReady = false;
+async function refresh() {
+  try {
+    if (!apiReady) { await resolveApi(); apiReady = true; }
+    const first = !S;
+    S = await api('/api/state');
+    if (first) { presetMine(); buildChips(); if (!S.emailReady && !S.viewer) setTimeout(openSettings, 400); }
+    render();
+  } catch {
+    $('#dot').className = 'dot err';
+    if (window.DUO_SHARE) {
+      apiReady = false; // the PC may have restarted with a new tunnel address — look it up again next time
+      $('#liveText').textContent = `${window.DUO_SHARE.owner || 'The owner'}'s Duo Radar is offline right now (their PC may be off). Retrying…`;
+      if (!S) $('#stores').innerHTML = '<div class="empty">Can\'t reach Duo Radar right now. This page keeps trying on its own.</div>';
+    } else {
+      $('#liveText').textContent = 'Lost connection to Duo Radar — is it still running?';
+    }
+  }
+}
+refresh();
+setInterval(refresh, window.DUO_SHARE ? 10000 : 5000);
+</script>
+</body>
+</html>
