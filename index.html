@@ -293,6 +293,14 @@
       <button class="btn" id="testEmail">Save &amp; send test email</button>
     </div>
     <div class="section" style="margin-top:16px">
+      <h4>Checkout helper bookmark</h4>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">Apple doesn't let a link carry a trade-in or AppleCare. This bookmark fills them in on Apple's page: your trade-in answers, Buy, Unlocked and AppleCare. Then you just click <b>Add to Bag</b> and pick the pickup store in the bag.</p>
+      <p style="font-size:13px;margin:0 0 8px"><b>Set up once:</b> show your bookmarks bar (Ctrl+Shift+B in Chrome/Edge), then drag this button onto it:</p>
+      <a id="bmLink" class="btn primary" style="display:inline-block;cursor:grab" title="Drag me to your bookmarks bar">⚡ Duo Radar: fill</a>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 0">Use it: <b>Create checkout URL</b> → open the link → click <b>⚡ Duo Radar: fill</b> → wait for the green note → <b>Add to Bag</b>.</p>
+      <div class="muted" style="font-size:12.5px;margin-top:6px" id="bmSummary"></div>
+    </div>
+    <div class="section" style="margin-top:16px">
       <h4>Share with friends</h4>
       <p class="muted" style="font-size:13px;margin:4px 0 8px">Friends get a read-only view: stock, stores and restocks. They don't see your settings, email or checkout links.</p>
       <label class="tog" style="margin-bottom:8px"><input type="checkbox" id="shEnabled"> Sharing on</label>
@@ -484,7 +492,7 @@ function render() {
       }).join('') || '<span class="muted" style="font-size:13px">Pick a storage and colour above</span>'}</div>
       <div class="meta">${isIn ? `In stock since ${ago(since)} · ` : (lastRestockAt(s.id, shown) ? `Last restock ${ago(lastRestockAt(s.id, shown))} · ` : '')}checked ${ago(checked)}</div>
       <div class="actions">
-        <button class="btn ${isIn ? 'primary' : ''}" data-copy="${esc(target.part)}" ${S.viewer ? 'hidden' : ''} data-store="${esc(s.name)}" title="Copies a link to ${esc(cfgName(target))} pre-filled with ${esc(S.checkoutSummary)}">Create checkout URL</button>
+        <button class="btn ${isIn ? 'primary' : ''}" data-copy="${esc(target.part)}" data-store="${esc(s.name)}" title="Copies a link to ${esc(cfgName(target))} on apple.com with Buy and Unlocked chosen">Create checkout URL</button>
         <a class="btn" href="${esc(buy)}" target="_blank" rel="noopener">Apple page</a>
         <a class="btn" href="${esc(s.mapsUrl)}" target="_blank" rel="noopener">Directions</a>
         ${s.phone ? `<a class="btn" href="tel:${esc(s.phone.replace(/[^\d+]/g, ''))}">Call</a>` : ''}
@@ -569,6 +577,9 @@ function openSettings() {
   $('#gMode').value = c.geonode.mode; $('#gCap').value = c.geonode.monthlyCap;
   $('#gUsage').textContent = `Used this month: ${S.geonodeUsage.used} of ${c.geonode.monthlyCap} (${S.geonodeUsage.month}).`;
   $('#gResult').style.display = 'none';
+  $('#bmLink').href = bookmarkletHref();
+  $('#bmLink').onclick = (e) => { e.preventDefault(); toast('Drag this button to your bookmarks bar, then click it on Apple\'s page.', 5000); };
+  $('#bmSummary').textContent = `It fills in: ${S.checkoutSummary}.`;
   $('#sTo').value = c.email.to; $('#sUser').value = c.email.smtp.user; $('#sFrom').value = c.email.from;
   $('#sHost').value = c.email.smtp.host; $('#sPort').value = c.email.smtp.port; $('#sSecure').checked = c.email.smtp.secure;
   $('#sPass').value = ''; $('#sPass').placeholder = c.email.smtp.passSet ? '•••••••• (saved — leave blank to keep)' : '16-character app password';
@@ -656,12 +667,15 @@ async function copyText(text) {
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-copy]'); if (!b) return;
   const c = S.catalog.find((x) => x.part === b.dataset.copy);
-  const ok = await copyText(c.checkoutUrl);
+  // Friends' view gets a plain link (model + Buy + Unlocked), with none of the owner's trade-in/AppleCare details.
+  const link = c.checkoutUrl || `${c.url}?product=${encodeURIComponent(c.part)}&purchaseOption=fullPrice&cppart=${encodeURIComponent('UNLOCKED/US')}`;
+  const ok = await copyText(link);
   if (ok) {
     const old = b.textContent; b.textContent = 'Copied ✓'; setTimeout(() => (b.textContent = old), 2000);
-    toast(`Copied checkout link for ${cfgName(c)} — ${S.checkoutSummary}. After Add to Bag, choose Apple ${b.dataset.store} for pickup.`, 9000);
+    if (S.viewer) toast(`Copied checkout link for ${cfgName(c)}: it opens apple.com with Buy and Unlocked chosen. Add a trade-in or AppleCare there if you want them, click Add to Bag, then pick Apple ${b.dataset.store} for pickup.`, 11000);
+    else toast(`Copied checkout link for ${cfgName(c)}. Open it, click your ⚡ Duo Radar: fill bookmark (trade-in + AppleCare), Add to Bag, then pick Apple ${b.dataset.store} for pickup. (Bookmark setup: Alert settings → Checkout helper.)`, 11000);
   } else {
-    prompt('Copy this checkout link:', c.checkoutUrl);
+    prompt('Copy this checkout link:', link);
   }
 });
 document.addEventListener('click', async (e) => {
@@ -681,6 +695,47 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'Duo Radar — iPhone Duo stock near you'; });
 
+// The bookmarklet: runs on apple.com's iPhone Duo page and clicks through Apple's own steps in order
+// (trade-in → Buy → Unlocked → AppleCare), the same way a person would.
+function fillScript(cfg) {
+  return `(async()=>{const C=${JSON.stringify(cfg)};
+const W=ms=>new Promise(r=>setTimeout(r,ms));
+const U=async(f,ms=9000)=>{const t=Date.now();while(Date.now()-t<ms){const v=f();if(v)return v;await W(200);}return null;};
+const R=(n,v)=>document.querySelector('input[type=radio][name="'+n+'"][value="'+v+'"]');
+const P=(n,v)=>{const r=R(n,v);if(!r)return false;if(!r.checked)(r.closest('label')||r).click();return true;};
+const K=(n,v)=>{const r=R(n,v);return !!(r&&r.checked);};
+const note=(m,ok)=>{let d=document.getElementById('duo-radar-note');if(!d){d=document.createElement('div');d.id='duo-radar-note';d.style.cssText='position:fixed;z-index:2147483647;top:16px;right:16px;max-width:340px;padding:12px 16px;border-radius:12px;font:14px/1.4 -apple-system,Segoe UI,sans-serif;color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.3)';document.body.appendChild(d);}d.style.background=ok===false?'#b42318':ok?'#0a7d34':'#1d1d1f';d.textContent=m;};
+if(!/(^|[.])apple[.]com$/.test(location.hostname)||!/buy-iphone/.test(location.pathname)){alert('Open an iPhone Duo checkout link from Duo Radar first, then click this bookmark.');return;}
+const miss=[];
+try{
+if(C.trade){note('Duo Radar: adding your trade-in…');
+ if(!(await U(()=>P('tradeupinline','tradeIn'))))miss.push('trade-in');
+ else{const s=await U(()=>document.querySelector('select[name="model"]'));
+  if(s){Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,C.trade.model);s.dispatchEvent(new Event('change',{bubbles:true}));}
+  for(const q of Object.keys(C.trade.answers)){if(!(await U(()=>R(q,C.trade.answers[q])))){miss.push('trade-in question '+q);continue;}P(q,C.trade.answers[q]);await W(700);}}
+ await W(1200);}
+note('Duo Radar: choosing Buy, Unlocked and AppleCare…');
+if(!(await U(()=>P('purchase_option_group','fullprice')&&K('purchase_option_group','fullprice'))))miss.push('Buy');
+await W(1200);
+if(!(await U(()=>P('carrierModel','UNLOCKED/US')&&K('carrierModel','UNLOCKED/US'))))miss.push('Unlocked');
+await W(1500);
+if(C.ac&&!(await U(()=>P('dimensionPaymentType',C.ac)&&K('dimensionPaymentType',C.ac))))miss.push('AppleCare');
+await W(800);
+const b=[...document.querySelectorAll('button')].find(x=>/add to bag/i.test(x.innerText||''));
+if(b)b.scrollIntoView({behavior:'smooth',block:'center'});
+miss.length?note('Duo Radar: set what it could, but please check: '+miss.join(', ')+'.',false):note('✓ Duo Radar filled '+C.label+'. Click Add to Bag, then pick your pickup store in the bag.',true);
+}catch(e){note('Duo Radar: '+e.message,false);}})()`;
+}
+function bookmarkletHref() {
+  const co = S.config.checkout || {};
+  const t = co.tradeIn || {};
+  const cfg = {
+    trade: t.pid ? { model: t.modelKey || 'model_12719', answers: t.answers || {} } : null,
+    ac: co.applecarePart ? `${co.applecarePart}-monthly` : null,
+    label: [t.pid ? 'your trade-in' : null, 'Buy', 'Unlocked', co.applecarePart ? 'AppleCare' : null].filter(Boolean).join(', '),
+  };
+  return 'javascript:' + encodeURIComponent(fillScript(cfg));
+}
 function shareStatusText() {
   const sh = S.share || {};
   if (!sh.enabled) return 'Sharing is off.';
